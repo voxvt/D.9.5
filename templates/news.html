@@ -2,11 +2,24 @@
 
 {% load custom_filters %}
 
+{% load custom_tags %}
+
 {% block title %} Список новостей {% endblock title %}
 
 {% block body %}
 
 <center><h2>СПИСОК НОВОСТЕЙ</h2></center>
+
+
+
+<!--   {# Добавляем форму, которая объединяет набор полей, которые будут отправляться в запросе #}-->
+<!--   <form action="" method="get">-->
+<!--       {# Переменная, которую мы передали через контекст, может сгенерировать нам форму с полями #}-->
+<!--       {{ filterset.form.as_p }}-->
+<!--       {# Добавим кнопку отправки данных формы #}-->
+<!--       <input type="submit" value="Найти" />-->
+<!--   </form>-->
+
 <hr>
 
 {% if posts %}
@@ -46,7 +59,42 @@
 
 
 {% else %}
-    <h2>НОВОСТЕЙ НЕТ</h2>
+    <h4>НОВОСТЕЙ НЕТ</h4>
 {% endif %}
+
+<hr>
+<!-- Пагинация-->
+<!-- Информация о предыдущих страницах -->
+
+{% if page_obj.number != 1 %}
+    <a href="?{% url_replace page=1 %}">Начало</a>
+{% endif %}
+
+{% if page_obj.has_previous %}
+
+    <a href="?{% url_replace page=1 %}">1</a>
+    {% if page_obj.previous_page_number != 1 %}
+        ...
+        <a href="?{% url_replace page=page_obj.previous_page_number %}">{{ page_obj.previous_page_number }} </a>
+    {% endif %}
+
+{% endif %}
+
+<!-- Информация о текущей странице -->
+{{ page_obj.number }}
+
+<!-- Информация о следующих страницах -->
+{% if page_obj.has_next %}
+    <a href="?{% url_replace page=page_obj.next_page_number %}">{{ page_obj.next_page_number }}</a>
+    {% if paginator.num_pages != page_obj.next_page_number %}
+        ...
+        <a href="?{% url_replace page=page_obj.paginator.num_pages %}"> {{ page_obj.paginator_num_pages }} </a>
+    {% endif %}
+{% endif %}
+
+{% if page_obj.number != page_obj.paginator.num_pages %}
+    <a href="?{% url_replace page=page_obj.paginator.num_pages %}">Конец</a>
+{% endif %}
+
 
 {% endblock body %}
