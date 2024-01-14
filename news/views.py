@@ -6,6 +6,7 @@ from .filters import PostFilter
 from .forms import PostForm
 from django.urls import reverse_lazy
 from django.http import HttpResponseRedirect
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 
 # Create your views here.
 
@@ -44,12 +45,13 @@ class PostDetail(DetailView):
 
         return context
 
-class PostCreate(CreateView):
+class PostCreate(PermissionRequiredMixin, LoginRequiredMixin, CreateView):
 
     form_class = PostForm
     model = Post
     template_name = 'create_post.html'
     success_url = reverse_lazy('post_list')
+    permission_required = ('news.add_post')
 
 class PostSearch(ListView):
 
@@ -70,54 +72,62 @@ class PostSearch(ListView):
             context['filterset'] = self.filterset
             return context
 
-class PostEdit(UpdateView):
+class PostEdit(PermissionRequiredMixin, LoginRequiredMixin, UpdateView):
 
     form_class = PostForm
     model = Post
     template_name = 'create_post.html'
     success_url = reverse_lazy('post_list')
+    permission_required = ('news.change_post')
 
-class PostDelete(DeleteView):
+class PostDelete(PermissionRequiredMixin, DeleteView):
 
     model = Post
     template_name = 'post_delete.html'
     success_url = reverse_lazy('post_list')
+    permission_required = ('news.delete_post')
 
-class NewsCreate(CreateView):
+class NewsCreate(PermissionRequiredMixin, LoginRequiredMixin, CreateView):
     form_class = PostForm
     model = Post
     template_name = 'create_post.html'
     success_url = reverse_lazy('post_list')
+    permission_required = ('news.add_post')
 
     def form_valid(self, form):
         form.instance.post_type = 'новость'
         return super().form_valid(form)
 
-class ArticleCreate(CreateView):
+class ArticleCreate(PermissionRequiredMixin, LoginRequiredMixin, CreateView):
     form_class = PostForm
     model = Post
     template_name = 'create_post.html'
     success_url = reverse_lazy('post_list')
+    permission_required = ('news.add_post')
 
     def form_valid(self, form):
         form.instance.post_type = 'статья'
         return super().form_valid(form)
 
-class ArticleEdit(UpdateView):
+class ArticleEdit(PermissionRequiredMixin, LoginRequiredMixin, UpdateView):
     model = Post  # Замените на вашу модель статьи
     fields = ['author', 'post_category', 'post_title', 'post_text']  # Укажите поля, которые нужно редактировать
     template_name = 'article_edit.html'  # Укажите имя вашего шаблона
+    permission_required = ('news.change_post')
 
-class ArticleDelete(DeleteView):
+class ArticleDelete(PermissionRequiredMixin, DeleteView):
     model = Post  # Замените на вашу модель статьи
     success_url = reverse_lazy('post_list')  # Укажите адрес после успешного удаления
+    permission_required = ('news.delete_post')
 
-class NewsEdit(UpdateView):
+class NewsEdit(PermissionRequiredMixin, LoginRequiredMixin, UpdateView):
     model = Post  # Замените на вашу модель новости
     fields = ['author', 'post_category', 'post_title', 'post_text']  # Укажите поля, которые нужно редактировать
     template_name = 'news_edit.html'  # Укажите имя вашего шаблона
+    permission_required = ('news.change_post')
 
-class NewsDelete(DeleteView):
+class NewsDelete(PermissionRequiredMixin, DeleteView):
     model = Post  # Замените на вашу модель новости
     success_url = reverse_lazy('post_list')  # Укажите адрес после успешного удаления
+    permission_required = ('news.delete_post')
 
