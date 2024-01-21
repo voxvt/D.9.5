@@ -30,9 +30,15 @@ class Category(models.Model):
     # Категории новостей/статей
 
     category_name = models.CharField(max_length=25, unique=True)  # Название категории
+    subscribe = models.ManyToManyField(User)
 
     def __str__(self):
         return self.category_name
+
+class CategorySubscribe(models.Model):
+
+    category = models.ForeignKey(Category, on_delete=models.PROTECT)
+    subscriber = models.ForeignKey(User, on_delete=models.PROTECT)
 
 
 class Post(models.Model):
@@ -51,7 +57,7 @@ class Post(models.Model):
     # Дата и время создания поста
     created_at = models.DateTimeField(auto_now_add=True)
     # Категория поста
-    post_category = models.ManyToManyField(Category)
+    post_category = models.ForeignKey(Category, on_delete=models.PROTECT, null=True)
     # Заголовок статьи/новости
     post_title = models.CharField(max_length=120)
     # Текст статьи/новости
@@ -74,7 +80,7 @@ class Post(models.Model):
 
 
     def __str__(self):
-        return f'{self.post_title} : {self.post_text[:20]}'
+        return f'{self.post_title} : {self.post_text[:20]} : {self.post_category}'
 
 
 class PostCategory(models.Model):
@@ -107,4 +113,3 @@ class Comment(models.Model):
     def dislike(self):
         self.comment_rating -= 1
         self.save()
-

@@ -7,8 +7,15 @@ from .forms import PostForm
 from django.urls import reverse_lazy
 from django.http import HttpResponseRedirect
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from django.core.mail import send_mail
+from django.views import View
+from django.contrib.auth.decorators import login_required
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from .models import Category, CategorySubscribe, PostCategory
+from django.views.decorators.csrf import csrf_exempt
+from django.template.loader import render_to_string
 
-# Create your views here.
 
 class PostsList(ListView):
 
@@ -131,3 +138,46 @@ class NewsDelete(PermissionRequiredMixin, DeleteView):
     success_url = reverse_lazy('post_list')  # Укажите адрес после успешного удаления
     permission_required = ('news.delete_post')
 
+class CategoriesView(LoginRequiredMixin, View):
+
+    def get(self, request, *args, **kwargs):
+        return render(request, 'categories.html', {'categories' : Category.objects.all()})
+
+class CategoryDetail(LoginRequiredMixin, DetailView):
+
+    model = Category
+    template_name = 'category.html'
+    context_object_name = 'category'
+
+
+def subscribe_to_category(request, pk):
+
+    current_user = request.user
+    CategorySubscribe.objects.create(category=Category.objects.get(pk=pk), subscriber=User.objects.get(pk=current_user.id))
+
+    return render(request, 'subscribed.html')
+
+# Create your views here.
+def notify_new_post_in_category(instance, **kwargs):
+
+    category_id = instance.post_category.id
+
+    subscribed_users = []
+    subscribed_users_1 = CategorySubscribe.objects.filter(category_id=int(category_id))
+
+    for user in subscribed_users_1:
+        subscribed_users.append(User.objects.get(id=user.subscriber_id).email)
+
+    print(subscribed_users)
+
+    send_mail(
+        subject=f'Новый пост в категории {Category.objects.get(id=category_id)}',
+        html_message=render_to_string('new_post.html',
+        context={'post' : instance, 'category' : Category.objects.get(id=category_id).category_name,
+                'link' : f'http://127.0.0.1:8000/{instance.id}'}),
+        message='',
+        from_email='ruslanSkillFactory@yandex.ru',
+        recipient_list=subscribed_users
+    )
+
+post_save.connect(notify_new_post_in_category, sender=Post)
