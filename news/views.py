@@ -8,6 +8,7 @@ from django.urls import reverse_lazy
 from django.http import HttpResponseRedirect
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.core.mail import send_mail
+from django.core.mail import EmailMultiAlternatives
 from django.views import View
 from django.contrib.auth.decorators import login_required
 from django.db.models.signals import post_save
@@ -138,46 +139,27 @@ class NewsDelete(PermissionRequiredMixin, DeleteView):
     success_url = reverse_lazy('post_list')  # Укажите адрес после успешного удаления
     permission_required = ('news.delete_post')
 
-class CategoriesView(LoginRequiredMixin, View):
-
-    def get(self, request, *args, **kwargs):
-        return render(request, 'categories.html', {'categories' : Category.objects.all()})
-
-class CategoryDetail(LoginRequiredMixin, DetailView):
-
-    model = Category
+class CategoryListView(PostsList):
+    model = Post
     template_name = 'category.html'
-    context_object_name = 'category'
+    context_object_name = 'category_news_list'
+
+    def get_queryset(self):
+        self.category = get_object_or_404(Category, id=self.kwargs['pk'])
+        queryset = Post.objects.filter(post_category=self.category).order_by('created_at')
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['is_not_subscriber'] = self.request.user not in self.category.subscribers.all()
+        context['category'] = self.category
+        return context
 
 
-def subscribe_to_category(request, pk):
-
-    current_user = request.user
-    CategorySubscribe.objects.create(category=Category.objects.get(pk=pk), subscriber=User.objects.get(pk=current_user.id))
-
-    return render(request, 'subscribed.html')
-
-# Create your views here.
-def notify_new_post_in_category(instance, **kwargs):
-
-    category_id = instance.post_category.id
-
-    subscribed_users = []
-    subscribed_users_1 = CategorySubscribe.objects.filter(category_id=int(category_id))
-
-    for user in subscribed_users_1:
-        subscribed_users.append(User.objects.get(id=user.subscriber_id).email)
-
-    print(subscribed_users)
-
-    send_mail(
-        subject=f'Новый пост в категории {Category.objects.get(id=category_id)}',
-        html_message=render_to_string('new_post.html',
-        context={'post' : instance, 'category' : Category.objects.get(id=category_id).category_name,
-                'link' : f'http://127.0.0.1:8000/{instance.id}'}),
-        message='',
-        from_email='ruslanSkillFactory@yandex.ru',
-        recipient_list=subscribed_users
-    )
-
-post_save.connect(notify_new_post_in_category, sender=Post)
+@login_required
+def subscribe(request, pk):
+    user = request.user
+    category = Category.objects.get(id=pk)
+    category.subscribers.add(user)
+    message = 'Вы успешно подписались на рассылку новостей категории '
+    return render(request, 'subscribe.html', {'category': category, 'message': message})

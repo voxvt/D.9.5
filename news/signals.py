@@ -1,11 +1,38 @@
-from django.core.mail import EmailMultiAlternatives
-# импортируем сигнал, который будет срабатывать после сохранения объекта в базу данных
-from django.db.models.signals import post_save
-from django.dispatch import receiver  # импортируем нужный декоратор
-from django.shortcuts import redirect
+from django.db.models.signals import m2m_changed
+from django.dispatch import receiver
+from news.models import PostCategory
 from django.template.loader import render_to_string
+from django.core.mail import EmailMultiAlternatives
+from django.conf import settings
+from django.db.models.signals import post_save
 
-from .models import Post, Category
-from .views import notify_new_post_in_category
+def send_notifications(preview, pk, title, subscribers):
+    html_content = render_to_string(
+        'post_created_email.html',
+        {
+            'text': preview,
+            'link': f'{settings.SITE_URL}/news/{pk}/'
+        }
+    )
 
-from django.views.decorators.csrf import csrf_exempt
+    msg = EmailMultiAlternatives(
+        subject=title,
+        body='',
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=subscribers,
+    )
+    msg.attach_alternative(html_content,'text/html')
+    msg.send()
+
+
+@receiver(m2m_changed, sender=PostCategory)
+def notify_about_new_post(sender, instance, **kwargs):
+    if kwargs['action'] == 'post_add':
+        categories = instance.category.all()
+        subscribers_emails = []
+
+        for cat in categories:
+            subscribers = cat.subscribers.all()
+            subscribers_emails += [s.email for s in subscribers]
+
+        send_notifications(instance.preview(), instance.pk, instance.title, subscribers_emails)

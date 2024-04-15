@@ -1,6 +1,10 @@
-from django.db import models
 from django.contrib.auth.models import User
+from django.db import models
 from django.db.models import Sum
+from django.db.models.functions import Coalesce
+from django.template.backends import django
+from django.urls import reverse
+
 
 class Author(models.Model):
 
@@ -29,11 +33,11 @@ class Category(models.Model):
 
     # Категории новостей/статей
 
-    category_name = models.CharField(max_length=25, unique=True)  # Название категории
-    subscribe = models.ManyToManyField(User)
+    name = models.CharField(max_length=25, unique=True)  # Название категории
+    subscribers = models.ManyToManyField(User, blank=True)
 
     def __str__(self):
-        return self.category_name
+        return self.name
 
 class CategorySubscribe(models.Model):
 

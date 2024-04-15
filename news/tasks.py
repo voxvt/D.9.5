@@ -1,46 +1,70 @@
-
-from django.core.mail import send_mail
-from .models import Category, CategorySubscribe, Post
-from datetime import datetime
-from .models import User
+from celery import shared_task
+import datetime
+from .models import Post
+from .models import Category
+from .models import PostCategory
+from django.core.mail import EmailMultiAlternatives
+from django.conf import settings
 from django.template.loader import render_to_string
+from django.db.models.signals import m2m_changed
+from django.dispatch import receiver
+from django.utils import timezone
 
 
-def send_weekly():
+@shared_task
+def info_after_new_post(pk):
+    post = Post.objects.get(pk=pk)
+    categories = post.post_category.all()
+    title = post.post_title
+    preview = post.preview()
+    subscribers_emails = []
 
-    week_number_last = datetime.now().isocalendar()[1]
-    week_posts = Post.objects.filter(created_at__week=str(week_number_last))
-    categories = Category.objects.all()
+    for cat in categories:
+        subscribers = cat.subscribers.all()
+        subscribers_emails += [s.email for s in subscribers]
 
-    categories_str = []
-    for category in categories:
-        categories_str.append(category.category_name)
+        html_content = render_to_string(
+            'post_created_email.html',
+            {
+                'text': preview,
+                'link': f'{settings.SITE_URL}/news/{pk}/'
+            }
+        )
 
-    print(categories_str)
+        msg = EmailMultiAlternatives(
+            subject=title,
+            body='',
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=subscribers,
+        )
+        msg.attach_alternative(html_content, 'text/html')
+        msg.send()
 
-    subscribed_users = []
 
+@shared_task
+def notifications_on_monday():
+    today = timezone.now()
+    last_week = today - datetime.timedelta(days=7)
+    posts = Post.objects.filter(creation_date__gte=last_week)
+    categories = set(posts.values_list('categories__category_name', flat=True))
+    subscribers = set(
+        Category.objects.filter(category_name__in=categories).values_list('subscribers__email', flat=True))
 
-    for category in categories:
-        posts_of_category = week_posts.filter(post_category_id=category.id)
+    html_content = render_to_string(
+        'monday_letters.html',
+        {
+            'link': settings.SITE_URL,
+            'posts': posts,
+        }
+    )
 
-        subscribed_users = CategorySubscribe.objects.filter(category_id=category.id)
+    msg = EmailMultiAlternatives(
+        subject="Новые статьи за неделю",
+        body='',
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=subscribers,
 
-        for user in subscribed_users:
+    )
 
-            print(user)
-
-            message = ''
-            for post in posts_of_category:
-                message += post.post_text + f'http://127.0.0.1:8000/{post.id}' + '\n'
-
-            send_mail(
-                subject=f'Посты за неделю в категории {Category.objects.get(id=category.id)}',
-                html_message=render_to_string('weekly_posts.html', context={'link' : f'http://127.0.0.1:8000/news/',
-                'user' : User.objects.get(id=user.subscriber_id), 'category' : Category.objects.get(id=category.id),
-                'posts' : posts_of_category}),
-                message='',
-                from_email='ruslanSkillFactory@yandex.ru',
-                recipient_list=[User.objects.get(id=user.subscriber_id).email]
-            )
-
+    msg.attach_alternative(html_content, 'text/html')
+    msg.send()
