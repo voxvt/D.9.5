@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import PostsList, PostDetail, PostCreate, PostSearch, PostEdit, PostDelete
-from .views import NewsCreate, ArticleCreate, PostEdit, PostDelete, ArticleEdit, ArticleDelete, NewsEdit, NewsDelete
+from .views import NewsCreate, ArticleCreate, NewsEdit, NewsDelete, ArticleEdit, ArticleDelete, NewsEdit, NewsDelete
 from .views import CategoryListView, subscribe
 
 
