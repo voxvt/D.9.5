@@ -4,6 +4,7 @@ from django.db.models import Sum
 from django.db.models.functions import Coalesce
 from django.template.backends import django
 from django.urls import reverse
+from django.core.cache import cache
 
 
 class Author(models.Model):
@@ -85,6 +86,10 @@ class Post(models.Model):
 
     def __str__(self):
         return f'{self.post_title} : {self.post_text[:20]} : {self.post_category}'
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        cache.delete(f'post-{self.pk}')
 
 
 class PostCategory(models.Model):
